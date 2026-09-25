@@ -18,8 +18,8 @@ Send students this checklist at least two days beforehand:
 
 1. Install Docker Desktop.
 2. Install Git.
-3. Clone the repository after it is published.
-4. Run `docker compose up --build -d`.
+3. Clone `https://github.com/darthvader58/api-scaling-workshop.git`.
+4. Run `docker compose up --build -d --wait`, then the smoke check.
 5. Confirm `curl http://localhost:8080/health` returns `{"status":"ok"}`.
 6. Open Prometheus at `http://localhost:9090` and Grafana at `http://localhost:3001`.
 
@@ -33,7 +33,7 @@ Ask students to bring a laptop with at least 8 GB RAM and 10 GB free disk space.
 | 00:15-00:35 | Docker setup and repository tour | Everyone has the stack running |
 | 00:35-01:00 | Baseline API and load testing | Establish RPS, latency, errors, and CPU baseline |
 | 01:00-01:30 | CPU, event loop, and horizontal process scaling | Observe why one process stops scaling linearly |
-| 01:30-02:00 | PostgreSQL bottleneck and connection pooling | See storage latency and pool contention |
+| 01:30-02:00 | PostgreSQL bottleneck and connection pooling | Measure database-route latency and pool contention |
 | 02:00-02:15 | Break | |
 | 02:15-02:45 | Redis caching | Compare cold-cache and warm-cache behavior |
 | 02:45-03:05 | Rate limiting | Protect the service with a Redis-backed counter |
@@ -51,6 +51,19 @@ Before students arrive:
 - Have a backup recording or screenshots of Prometheus/Grafana in case Docker fails.
 - Do not use real production credentials, cloud accounts, or paid services.
 
+### Instructor preflight
+
+1. Start Docker Desktop; verify `git --version`, `docker --version`, `docker compose version`, and `docker info`.
+2. Check ports 8080, 9090, and 3001 are free. Use default settings, with no unexpected `.env` overrides.
+3. Run `docker compose config`, `docker compose up --build -d --wait`, and `./scripts/smoke-test.sh` (Git Bash/macOS/Linux). In PowerShell use `docker compose exec -T api node scripts/smoke-test.js`.
+4. Benchmark static, SQL, and cached routes at `10 25`; expect no unexpected statuses, errors, or timeouts. Record the machine and Docker resource allocation.
+5. Run `docker compose up --build -d --scale api=3`, repeat the static benchmark, and confirm **three APIs still exist afterward** with `docker compose ps`.
+6. Confirm three healthy Prometheus targets and populated panels at `http://localhost:3001/d/workshop` after a minute of traffic.
+7. Demonstrate 429s, cache hits, and a completed job. Rehearse worker stop/start and crash recovery from Lab 6.
+8. Return to one replica: `docker compose up -d --scale api=1 --wait`. Restore pool 10 and worker delay 250. Finish with `docker compose down`.
+
+For automated instructor regression coverage, optionally install Node.js 22+ on the **instructor host**, start three API replicas with default settings, and run `node scripts/integration-test.js`. This test consumes rate quotas, clears only `rate:*` counters, and stops/restarts the workshop worker and Redis to exercise failures. Do not run benchmarks concurrently. Students do not need host Node.js.
+
 ## Teaching sequence
 
 ### 1. Baseline
@@ -63,7 +76,7 @@ Use `/api/v1/cpu` to create repeatable CPU work. Compare one API container with 
 
 ### 3. Database bottleneck
 
-Use `/api/v1/records/42`. Compare the simple route and database route. Explain disk, query execution, network hops, locks, and connection limits. Then change `DB_POOL_MAX` and repeat the experiment. Students should look for the point where increasing pool size stops helping.
+Use `/api/v1/records/42`. Compare the simple route and database route. Explain disk, query execution, network hops, locks, and connection limits. Then change `DB_POOL_MAX` and repeat the experiment. Students should look for the point where increasing pool size stops helping. An indexed, memory-resident lookup may not saturate PostgreSQL on every laptop; let measurements determine the bottleneck.
 
 ### 4. Redis caching
 
@@ -90,7 +103,7 @@ Target: 1,000,000 requests/second
 Measured local rate per API container: ______
 Assumed production efficiency: ______%
 Estimated API containers: ______
-Requests per database read: ______
+Fraction of requests requiring a record read: ______
 Cache hit rate: ______%
 Estimated database requests/second: ______
 Estimated Redis requests/second: ______
@@ -104,7 +117,7 @@ Then discuss the network budget:
 network bytes/second = requests/second × average response bytes
 ```
 
-A small response and a 30 KB response lead to radically different systems. The video demonstrates this distinction, and this workshop should make it explicit.
+A small response and a 30 KB response lead to radically different systems. Include protocol overhead, internal traffic, and bits/second when comparing link capacity. Use the formula worksheet and sensitivity cases in `docs/LABS.md`.
 
 ## Assessment / completion criteria
 
@@ -139,4 +152,4 @@ Check that the target is the gateway URL, not a container-only hostname. From th
 
 ### Laptop becomes slow
 
-Reduce connections from 100 to 25, reduce Docker Desktop CPU/memory limits, and stop Grafana if necessary. The goal is learning, not exhausting the machine.
+Reduce connections from 100 to 25, close other applications, preserve sufficient Docker memory, and stop Grafana if necessary. The goal is learning, not exhausting the machine.

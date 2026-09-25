@@ -9,4 +9,4 @@ SELECT n, 'workshop-record-' || n
 FROM generate_series(1, 10000) AS n
 ON CONFLICT (id) DO NOTHING;
 
-CREATE INDEX IF NOT EXISTS records_id_idx ON records (id);
+-- The primary key already creates an index on id.

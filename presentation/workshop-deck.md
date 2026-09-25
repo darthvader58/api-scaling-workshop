@@ -76,9 +76,9 @@ Prometheus + Grafana observe the system
 # Start the workshop
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/darthvader58/api-scaling-workshop.git
 cd api-scaling-workshop
-docker compose up --build -d
+docker compose up --build -d --wait
 curl http://localhost:8080/health
 ```
 
@@ -86,7 +86,7 @@ Tools:
 
 - API: `http://localhost:8080`
 - Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3001`
+- Grafana: `http://localhost:3001/d/workshop`
 
 ---
 
@@ -215,7 +215,8 @@ Route:
 GET /api/v1/rate-limited
 ```
 
-Redis stores a shared counter so limits work across API containers.
+Redis stores an atomic, shared fixed-minute counter across API containers.
+HAProxy forwards the client IP; NAT users may share a quota.
 
 ```text
 allowed request → continue
@@ -237,11 +238,12 @@ POST /api/v1/jobs → 202 Accepted
 The API does not make the client wait for slow work.
 
 ```text
-API → Redis queue → worker → job status
+API → Redis Stream → worker → acknowledge + job status
 ```
 
 Production questions:
 
+- at-least-once delivery and crash recovery;
 - retries;
 - idempotency;
 - dead-letter queues;
@@ -267,7 +269,7 @@ Useful signals:
 - latency and p99;
 - errors and 429s;
 - cache hits and misses;
-- queue activity;
+- accepted jobs (not a queue-depth gauge);
 - process CPU and memory.
 
 If we cannot see the bottleneck, we are guessing.
@@ -288,6 +290,9 @@ Average response bytes: ______
 Network bytes/second: ______
 ```
 
+Replicas = ceil(target / (measured sustainable RPS × assumed efficiency)).
+Database reads/s = target × read fraction × (1 − cache hit fraction).
+
 The result is a model, not a local benchmark claim.
 
 ---
@@ -302,7 +307,9 @@ network bytes/second
 At 1M RPS:
 
 - 200 bytes/request ≈ 200 MB/s;
-- 30 KB/request ≈ 30 GB/s.
+- 30 KB/request ≈ 30 GB/s (240 Gbit/s).
+
+Decimal units; protocol overhead and internal traffic are additional.
 
 The application may be fast while the network becomes the bottleneck.
 

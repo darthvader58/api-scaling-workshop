@@ -9,7 +9,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U workshop -d workshop"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U workshop -d workshop"]
       interval: 3s
       timeout: 3s
       retries: 20
@@ -33,14 +33,19 @@ services:
       PORT: 3000
       DATABASE_URL: postgres://workshop:workshop@db:5432/workshop
       REDIS_URL: redis://redis:6379
-      RATE_LIMIT_PER_MINUTE: 60
-      DB_POOL_MAX: 10
-      WORKER_DELAY_MS: 250
+      TRUST_PROXY: "true"
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-60}
+      DB_POOL_MAX: ${DB_POOL_MAX:-10}
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/ready', {signal: AbortSignal.timeout(2500)}).then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
     restart: unless-stopped
 
   worker:
@@ -50,7 +55,7 @@ services:
     command: ["node", "src/worker.js"]
     environment:
       REDIS_URL: redis://redis:6379
-      WORKER_DELAY_MS: 250
+      WORKER_DELAY_MS: ${WORKER_DELAY_MS:-250}
     depends_on:
       redis:
         condition: service_healthy
@@ -59,26 +64,33 @@ services:
   gateway:
     image: haproxy:3.0-alpine
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./infra/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/ready"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:v2.55.1
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
   grafana:
     image: grafana/grafana:11.3.0
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
@@ -93,9 +105,11 @@ services:
     build:
       context: .
       dockerfile: loadtest.Dockerfile
+    environment:
+      TARGET: http://gateway:8080/api/v1/static
+    # The stack must already be running. Dependencies here can make `compose run`
+    # reconcile api back to one replica and invalidate the scaling experiment.
     profiles: ["loadtest"]
-    depends_on:
-      - gateway
 
 volumes:
   postgres_data:

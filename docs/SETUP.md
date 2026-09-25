@@ -11,6 +11,10 @@ Use Docker Desktop. Students only need to install:
 
 The repository supplies the API, PostgreSQL, Redis, HAProxy, Prometheus, Grafana, worker, and load tester.
 
+Plan for at least 8 GB system RAM and 10 GB free disk space. Internet is needed for the first image/package downloads; no cloud service is used at runtime.
+
+Docker Desktop is free for education under [Docker’s license terms](https://docs.docker.com/subscription-billing/desktop-license/). Install and use it locally without signing in; no payment method is required for this workshop. Institutional/commercial deployments should check their own eligibility.
+
 ## Step 1: Install Git
 
 ### Windows
@@ -49,7 +53,7 @@ https://www.docker.com/products/docker-desktop/
 ### Windows
 
 - Install Docker Desktop.
-- Use the WSL 2 backend if Docker offers the choice.
+- Follow the [Windows requirements and installation guide](https://docs.docker.com/desktop/setup/install/windows-install/); enable virtualization and WSL 2. Use Linux containers.
 - Restart the computer if requested.
 - Open Docker Desktop and wait until it says Docker is running.
 
@@ -59,11 +63,13 @@ Choose the correct Apple Silicon or Intel installer. Open Docker Desktop after i
 
 ### Linux
 
-Docker Desktop is acceptable. Docker Engine plus the Compose plugin also works, but Docker Desktop is easier for a beginner workshop.
+Install Docker Desktop for your supported Linux distribution using the [Linux installation guide](https://docs.docker.com/desktop/setup/install/linux/). Check its virtualization requirements (including KVM). Docker Desktop is the required student path; Engine plus Compose is an instructor-managed advanced alternative.
 
 ## Step 3: Verify installation
 
-Open Terminal, PowerShell, or Git Bash:
+Use Terminal on macOS/Linux and **Git Bash on Windows** for all Bash code blocks in this repository. Git Bash is included with Git for Windows and supports the quoted JSON and backslash continuations used in the labs. PowerShell uses different quoting and continuation rules.
+
+Open your terminal:
 
 ```bash
 git --version
@@ -71,21 +77,21 @@ docker --version
 docker compose version
 ```
 
-The exact version numbers are not important. Each command should print a version instead of an error.
+Use a current Docker Desktop release with Compose v2 or newer (`docker compose`, with a space). Each command should print a version. Also run `docker info` to verify the engine is running; a working CLI alone is insufficient.
 
 ## Step 4: Download the workshop
 
 ```bash
-git clone <YOUR_REPOSITORY_URL>
+git clone https://github.com/darthvader58/api-scaling-workshop.git
 cd api-scaling-workshop
 ```
 
-If Git asks for a GitHub login, use the repository URL and GitHub authentication method provided by the instructor.
+This repository is public: cloning does not need a GitHub account. If asked for login, check the URL and your Git credential/proxy configuration with the instructor.
 
 ## Step 5: Start everything
 
 ```bash
-docker compose up --build -d
+docker compose up --build -d --wait
 ```
 
 The first run downloads several images and may take several minutes. This is expected.
@@ -124,7 +130,7 @@ Invoke-WebRequest http://localhost:8080/health
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3001
 
-Grafana is configured for anonymous read-only access in this workshop, so students do not need to create an account.
+Grafana is configured for anonymous read-only access. Open [the provisioned workshop dashboard](http://localhost:3001/d/workshop) to see graphs without an account. Allow at least a minute of traffic for rate graphs.
 
 ## Step 8: Stop the workshop
 
@@ -172,9 +178,33 @@ docker compose ps
 
 ### “My laptop is slow”
 
-Reduce Docker Desktop CPU and memory usage, close other applications, or use smaller benchmark settings such as 25 connections instead of 100.
+Close other applications and use 25 connections instead of 100. Keep enough Docker memory for the stack; reducing an already tight memory allocation can cause out-of-memory exits. Use `docker stats --no-stream` to inspect usage.
 
-## Optional native setup
+### Smoke test (all platforms)
+
+```bash
+docker compose exec -T api node scripts/smoke-test.js
+```
+
+In Git Bash/macOS/Linux, `./scripts/smoke-test.sh` runs the same check. It waits for readiness, checks SQL/cache/metrics, exhausts this client's rate-limit bucket, and submits a job. The worker must be running. A successful run prints `smoke test passed`.
+
+### “503” immediately after scaling or recreation
+
+HAProxy refreshes Docker DNS and checks API readiness. Wait up to 30 seconds, then run the smoke check. Check `docker compose logs --tail=100 gateway api worker` if it persists. `/health` checks the API process; `/ready` checks PostgreSQL and Redis too.
+
+### Hostnames and ports
+
+From your laptop use `localhost:8080`. Inside the load-test container use `gateway:8080`; its `localhost` is the load tester itself. PostgreSQL and Redis are deliberately not published to the host. Web ports bind to loopback only; these anonymous workshop services are not intended for LAN/internet deployment.
+
+### Reset and initialization
+
+SQL in `db/init` runs only when PostgreSQL first creates an empty data volume. Editing the SQL does not update an existing database. `docker compose down -v` deletes all workshop volumes and queued jobs; then start again to reseed 10,000 rows. Ordinary `down` retains data. Prometheus history is ephemeral and is lost when its container is removed.
+
+### Configuration
+
+Defaults work without `.env`. To tune the labs, copy `.env.example` to `.env`, edit its three settings, and recreate the affected API/worker service. Compose substitutes these variables; it does not pass arbitrary `.env` keys into containers. Keep `WORKER_DELAY_MS` between 0 and 5000.
+
+## Optional native setup (advanced only)
 
 A native installation is intentionally not the primary workshop path. It requires:
 

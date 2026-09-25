@@ -45,9 +45,9 @@ No cloud account or payment method is needed.
 ## Start the lab
 
 ```bash
-git clone <YOUR_REPOSITORY_URL>
+git clone https://github.com/darthvader58/api-scaling-workshop.git
 cd api-scaling-workshop
-docker compose up --build -d
+docker compose up --build -d --wait
 curl http://localhost:8080/health
 ```
 
@@ -57,15 +57,32 @@ Expected response:
 {"status":"ok"}
 ```
 
+Use Git Bash on Windows for these Bash examples; see the setup guide for shell details.
+
 Open the local tools:
 
 - API gateway: http://localhost:8080
 - Prometheus: http://localhost:9090
-- Grafana: http://localhost:3001
+- Grafana dashboard: http://localhost:3001/d/workshop
+
+## Services
+
+| Service | Purpose |
+|---|---|
+| `api` | Fastify routes, per-process SQL pool, metrics |
+| `db` | PostgreSQL with 10,000 seeded records |
+| `redis` | Shared cache, rate counters, durable local queue |
+| `worker` | Simulated asynchronous work and job acknowledgments |
+| `gateway` | HAProxy balances healthy API replicas (up to 10) |
+| `prometheus` | Scrapes each API replica using Docker DNS |
+| `grafana` | Anonymous, provisioned read-only dashboard |
+| `loadtest` | On-demand AutoCannon container; not started by default |
+
+The queue uses Redis Streams with recovery after worker crashes. Delivery is at least once; it is a teaching example, not an exactly-once production queue. All job types simulate a delay.
 
 ## Run a local benchmark
 
-The load tester also runs inside Docker:
+The load tester also runs inside Docker. Start the stack first; running a benchmark deliberately does not start or resize other services:
 
 ```bash
 docker compose run --rm loadtest http://gateway:8080/api/v1/static 15 100
@@ -114,7 +131,8 @@ curl -X POST http://localhost:8080/api/v1/jobs \
 The API returns a `jobId` and `202 Accepted`. Check the job using the returned ID:
 
 ```bash
-curl http://localhost:8080/api/v1/jobs/<JOB_ID>
+JOB_ID='paste-the-returned-job-id-here'
+curl "http://localhost:8080/api/v1/jobs/$JOB_ID"
 ```
 
 Watch the worker:
@@ -139,7 +157,7 @@ docker compose down -v
 
 A laptop is not a valid environment for proving 1 million RPS. Students should report their measured local result, identify the bottleneck, and use a capacity model to explain how many independent workers, cores, cache capacity, database capacity, and load generators a production design would need.
 
-Run the automated smoke test after startup:
+Run the automated smoke test after startup (Git Bash/macOS/Linux):
 
 ```bash
 ./scripts/smoke-test.sh
@@ -151,3 +169,5 @@ See:
 - `docs/WORKSHOP_PLAN.md`
 - `docs/LABS.md`
 - `presentation/workshop-deck.md`
+
+PowerShell-compatible equivalent: `docker compose exec -T api node scripts/smoke-test.js`.

@@ -173,7 +173,7 @@ See:
 PowerShell-compatible equivalent: `docker compose exec -T api node scripts/smoke-test.js`.
 
 <hr>
-Star this repository if you found it helpful. NOW YOU'RE A **BACKEND ENGINEER** TOO!!!
+Star this repository if you found it helpful. NOW YOU'RE A <b>BACKEND ENGINEER</b> TOO!!!
 
 Made with <3 by Shashwat Raj :) 
 

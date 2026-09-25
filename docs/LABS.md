@@ -29,7 +29,7 @@ Students often hear similar-sounding technology names. Here is what this reposit
 | FastAPI | A Python web framework | Useful technology, but not part of this repository. |
 | Auth0 | A hosted authentication service | Not used in this workshop. No Auth0 account, login provider, or cloud credential is required. |
 | AutoCannon | A Node.js HTTP load-testing tool | The `loadtest` container uses it to send many requests to the API. |
-| Docker Compose | The tool that starts the multi-container stack | It starts PostgreSQL, Redis, API, worker, gateway, Prometheus, Grafana, and the load-test container. |
+| Docker Compose | The tool that starts the multi-container stack | It starts PostgreSQL, Redis, API, worker, gateway, Prometheus, and Grafana, and it can run the load-test container on demand. |
 | HAProxy | The local reverse proxy and load balancer | Students call `localhost:8080`; HAProxy forwards requests to one or more API containers. |
 | PostgreSQL | The relational database | It stores the seeded `records` table used in database labs. |
 | Redis | An in-memory data store | This workshop uses Redis for caching, rate limiting counters, and a queue. |

@@ -8,7 +8,7 @@ Reference video: [Let’s Handle 1 Million Requests per Second, It’s Scarier T
 
 The workshop follows its progression but replaces paid cloud infrastructure with local Docker services and treats 1M RPS as a capacity-model exercise.
 
-See `docs/LABS.md` file for the full explanatory study guide. 
+See <a href="https://github.com/darthvader58/api-scaling-workshop/blob/main/docs/LABS.md">`docs/LABS.md`</a> file for the full explanatory study guide. 
 
 ## What students will learn
 

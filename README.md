@@ -165,10 +165,7 @@ Run the automated smoke test after startup (Git Bash/macOS/Linux):
 
 See:
 
-- `docs/SETUP.md`
-- `docs/WORKSHOP_PLAN.md`
 - `docs/LABS.md`
-- `presentation/workshop-deck.md`
 
 PowerShell-compatible equivalent: `docker compose exec -T api node scripts/smoke-test.js`.
 

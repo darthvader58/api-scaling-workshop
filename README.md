@@ -8,6 +8,8 @@ Reference video: [Let’s Handle 1 Million Requests per Second, It’s Scarier T
 
 The workshop follows its progression but replaces paid cloud infrastructure with local Docker services and treats 1M RPS as a capacity-model exercise.
 
+See `docs/SETUP.md` file for the full explanatory study guide. 
+
 ## What students will learn
 
 1. Establish a baseline with a tiny Fastify API.
